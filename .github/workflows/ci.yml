@@ -1,6 +1,5 @@
 name: DevSecOps CI Pipeline
 
-# Le pipeline se déclenche à chaque fois qu'on pousse du code sur la branche main
 on:
   push:
     branches:
@@ -10,17 +9,14 @@ jobs:
   build-test-push:
     runs-on: ubuntu-latest
     
-    # Permissions nécessaires pour que GitHub Actions puisse pousser l'image sur GHCR
     permissions:
       contents: read
       packages: write
 
     steps:
-      # 1. Récupérer le code source
       - name: Checkout du code
         uses: actions/checkout@v3
 
-      # 2. Se connecter au Registry de GitHub (GHCR)
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
         with:
@@ -28,7 +24,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 3. BUILD & TESTS BASIQUES
       - name: Build & Test Backend (Validation)
         run: |
           echo "Construction de l'image de test..."
@@ -54,11 +49,11 @@ jobs:
         with:
           context: ./backend
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/backend-app:${{ github.sha }}
+          tags: ghcr.io/matthis323/backend-app:${{ github.sha }}
 
       - name: Build and Push Frontend Image
         uses: docker/build-push-action@v4
         with:
           context: ./frontend
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/frontend-app:${{ github.sha }}
+          tags: ghcr.io/matthis323/frontend-app:${{ github.sha }}
