@@ -8,7 +8,6 @@ on:
 jobs:
   build-test-push:
     runs-on: ubuntu-latest
-    
     permissions:
       contents: read
       packages: write
@@ -24,34 +23,40 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & Test Backend (Validation)
-        run: |
-          echo "Construction de l'image de test..."
-          docker build -t test-backend ./backend/
-          echo "Vérification que le conteneur démarre sans crasher..."
-          docker run -d --name backend-test test-backend
-          sleep 5
-          docker rm -f backend-test
+      # --- BUILD ---
+      - name: Build Backend Image
+        run: docker build -t backend-image:latest ./backend/
 
-      - name: Build & Test Frontend (Validation)
-        run: |
-          echo "Construction de l'image de test..."
-          docker build -t test-frontend ./frontend/
-          echo "Vérification que le conteneur démarre sans crasher..."
-          docker run -d --name frontend-test test-frontend
-          sleep 5
-          docker rm -f frontend-test
+      - name: Build Frontend Image
+        run: docker build -t frontend-image:latest ./frontend/
 
-      # 4. PUSH VERS LE REGISTRY (Si les tests sont OK)
-      # On utilise un tag unique basé sur le SHA du commit pour le versionnement
-      - name: Build and Push Backend Image
+      # --- SCAN DE SÉCURITÉ (TRIVY) ---
+      - name: Scan Backend Vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'backend-image:latest'
+          format: 'table'
+          # On bloque le pipeline uniquement si Trivy trouve des failles "CRITICAL"
+          exit-code: '1'
+          severity: 'CRITICAL'
+
+      - name: Scan Frontend Vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'frontend-image:latest'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL'
+
+      # --- PUSH (Uniquement si les scans sont OK) ---
+      - name: Push Backend Image
         uses: docker/build-push-action@v4
         with:
           context: ./backend
           push: true
           tags: ghcr.io/matthis323/backend-app:${{ github.sha }}
 
-      - name: Build and Push Frontend Image
+      - name: Push Frontend Image
         uses: docker/build-push-action@v4
         with:
           context: ./frontend
